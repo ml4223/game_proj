@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Race to 100</title>
+<style>
+:root{--bg:#10243a;--ink:#f4efe3;--you:#f2c14e;--bot:#e86a5c;--card:#fffdf7}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+main{width:100%;max-width:480px;padding:20px 16px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px}
+h1{margin:0;font:700 1.6rem Georgia,"Times New Roman",serif;text-align:center}
+.board{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.side{display:flex;flex-direction:column;align-items:center;gap:10px}
+.name{font-size:1.1rem}
+.score{font:700 3rem Georgia,serif;line-height:1}
+.you .score{color:var(--you)}.bot .score{color:var(--bot)}
+.bar{width:100%;height:12px;background:#ffffff22;border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;transition:width .4s}
+.you .bar i{background:var(--you)}.bot .bar i{background:var(--bot)}
+.card{width:88px;height:124px;background:var(--card);color:#1b1b1b;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:2.2rem;font-weight:700;box-shadow:0 3px 8px #0006}
+.card.red{color:#c0122c}
+.card.empty{background:transparent;border:3px dashed #ffffff44;box-shadow:none;color:#ffffff55}
+.gain{min-height:1.4em;font-size:1.1rem}
+#msg{text-align:center;font-size:1.3rem;min-height:2.6em}
+button{font:700 1.5rem system-ui,sans-serif;padding:20px;border:0;border-radius:16px;background:var(--you);color:#1b1b1b;width:100%;min-height:68px;cursor:pointer}
+button:disabled{opacity:.45}
+button:focus-visible{outline:4px solid #fff;outline-offset:3px}
+p.rule{margin:0;text-align:center;opacity:.75;font-size:1rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Race to 100</h1>
+  <div class="board">
+    <section class="side you" aria-label="You">
+      <div class="name">You</div>
+      <div class="score" id="s0">0</div>
+      <div class="bar"><i id="b0"></i></div>
+      <div id="c0"></div>
+      <div class="gain" id="g0"></div>
+    </section>
+    <section class="side bot" aria-label="Bot">
+      <div class="name">Bot</div>
+      <div class="score" id="s1">0</div>
+      <div class="bar"><i id="b1"></i></div>
+      <div id="c1"></div>
+      <div class="gain" id="g1"></div>
+    </section>
+  </div>
+  <div id="msg" aria-live="polite"></div>
+  <button id="go">Draw a card</button>
+  <p class="rule">Take turns drawing. Ace is 1, face cards are 11, 12 and 13. First to 100 wins.</p>
+</main>
+<script>
+const SUITS=['♠','♥','♦','♣'],RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+let deck,score,busy,over;
+const $=id=>document.getElementById(id);
+
+function makeDeck(){
+  const d=[];
+  for(let s=0;s<4;s++)for(let r=0;r<13;r++)d.push({s,r});
+  for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
+  return d;
+}
+function draw(){if(!deck.length)deck=makeDeck();return deck.pop();}
+
+function showCard(who,c){
+  const red=c&&(c.s===1||c.s===2);
+  $('c'+who).innerHTML=c
+    ?`<div class="card ${red?'red':''}"><span>${RANKS[c.r]}</span><span>${SUITS[c.s]}</span></div>`
+    :'<div class="card empty">?</div>';
+  $('g'+who).textContent=c?'+'+(c.r+1):'';
+}
+function render(){
+  for(const w of [0,1]){
+    $('s'+w).textContent=score[w];
+    $('b'+w).style.width=Math.min(100,score[w])+'%';
+  }
+}
+function finish(winner){
+  over=true;
+  $('msg').textContent=winner===0?'You win! 🎉':'The bot wins this time.';
+  $('go').textContent='Play again';
+  $('go').disabled=false;
+}
+function turn(who){
+  const c=draw();
+  score[who]+=c.r+1;
+  showCard(who,c);
+  render();
+  return score[who]>=100;
+}
+function start(){
+  deck=makeDeck();score=[0,0];busy=false;over=false;
+  showCard(0,null);showCard(1,null);render();
+  $('msg').textContent='Your turn. Tap the button to draw.';
+  $('go').textContent='Draw a card';
+  $('go').disabled=false;
+}
+$('go').addEventListener('click',()=>{
+  if(over){start();return;}
+  if(busy)return;
+  busy=true;
+  $('go').disabled=true;
+  if(turn(0)){finish(0);return;}
+  $('msg').textContent='Bot is drawing…';
+  setTimeout(()=>{
+    if(turn(1)){finish(1);return;}
+    busy=false;
+    $('go').disabled=false;
+    $('msg').textContent='Your turn.';
+  },900);
+});
+start();
+</script>
+</body>
+</html>
